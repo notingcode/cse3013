@@ -34,6 +34,7 @@ void InitTetris(){
 
 	nextBlock[0]=rand()%7;
 	nextBlock[1]=rand()%7;
+	nextBlock[2]=rand()%7;
 	blockRotate=0;
 	blockY=-1;
 	blockX=WIDTH/2-2;
@@ -43,25 +44,29 @@ void InitTetris(){
 
 	DrawOutline();
 	DrawField();
-	DrawBlock(blockY,blockX,nextBlock[0],blockRotate,' ');
+	DrawBlockWithFeatures(blockY,blockX,nextBlock[0],blockRotate);
 	DrawNextBlock(nextBlock);
 	PrintScore(score);
 }
 
 void DrawOutline(){	
 	int i,j;
-	/* 블럭이 떨어지는 공간의 태두리를 그린다.*/
+	/* 블럭이 떨어지는 공간의 테두리를 그린다.*/
 	DrawBox(0,0,HEIGHT,WIDTH);
 
-	/* next block을 보여주는 공간의 태두리를 그린다.*/
+	/* next block을 보여주는 공간의 테두리를 그린다.*/
 	move(2,WIDTH+10);
 	printw("NEXT BLOCK");
 	DrawBox(3,WIDTH+10,4,8);
 
-	/* score를 보여주는 공간의 태두리를 그린다.*/
-	move(9,WIDTH+10);
+	// next next block을 보여주는 공간의 테두리를 그린다.
+	move(8,WIDTH+10);
+	DrawBox(9,WIDTH+10,4,8);
+
+	/* score를 보여주는 공간의 테두리를 그린다.*/
+	move(15,WIDTH+10);
 	printw("SCORE");
-	DrawBox(10,WIDTH+10,1,8);
+	DrawBox(16,WIDTH+10,1,8);
 }
 
 int GetCommand(){
@@ -137,7 +142,7 @@ void DrawField(){
 
 
 void PrintScore(int score){
-	move(11,WIDTH+11);
+	move(17,WIDTH+11);
 	printw("%8d",score);
 }
 
@@ -147,6 +152,18 @@ void DrawNextBlock(int *nextBlock){
 		move(4+i,WIDTH+13);
 		for( j = 0; j < 4; j++ ){
 			if( block[nextBlock[1]][0][i][j] == 1 ){
+				attron(A_REVERSE);
+				printw(" ");
+				attroff(A_REVERSE);
+			}
+			else printw(" ");
+		}
+	}
+
+	for(i=0; i < 4; i++){
+		move(10+i, WIDTH+13);
+		for(j=0; j < 4; j++){
+			if(block[nextBlock[2]][0][i][j] == 1){
 				attron(A_REVERSE);
 				printw(" ");
 				attroff(A_REVERSE);
@@ -254,7 +271,7 @@ int CheckToMove(char f[HEIGHT][WIDTH],int currentBlock,int blockRotate, int bloc
 }
 
 void DrawChange(char f[HEIGHT][WIDTH],int command,int currentBlock,int blockRotate, int blockY, int blockX){
-	int prevBlockY, prevBlockX, x, y, y_cord, x_cord;
+/*	int prevBlockY, prevBlockX, x, y, y_cord, x_cord;
 
 	switch(command){
 		case KEY_DOWN:
@@ -285,14 +302,17 @@ void DrawChange(char f[HEIGHT][WIDTH],int command,int currentBlock,int blockRota
 			}
 		}
 	}
+*/
 
-	move(HEIGHT, WIDTH+10);
+	DrawField();
 
-	DrawBlock(blockY, blockX, currentBlock, blockRotate, ' ');
+	//move(HEIGHT, WIDTH+10);
+
+	DrawBlockWithFeatures(blockY, blockX, currentBlock, blockRotate);
 	
 	//1. 이전 블록 정보를 찾는다. ProcessCommand의 switch문을 참조할 것
 	//2. 이전 블록 정보를 지운다. DrawBlock함수 참조할 것.
-	//3. 새로운 블록 정보를 그린다. 
+	//3. 새로운 블록 정보를 그린다.
 }
 
 void BlockDown(int sig){
@@ -308,12 +328,13 @@ void BlockDown(int sig){
 			return;
 		}
 
-		AddBlockToField(field, nextBlock[0], blockRotate, blockY, blockX);
-		blockY=-1, blockX=(WIDTH)/2-2, blockRotate=0;
+		score += AddBlockToField(field, nextBlock[0], blockRotate, blockY, blockX);
+		blockY = -1, blockX = (WIDTH)/2-2, blockRotate=0;
 		score += DeleteLine(field);
 		PrintScore(score);
 		nextBlock[0] = nextBlock[1];
-		nextBlock[1] = rand()%7;
+		nextBlock[1] = nextBlock[2];
+		nextBlock[2] = rand()%7;
 		DrawField();
 		DrawNextBlock(nextBlock);
 	}
@@ -322,21 +343,23 @@ void BlockDown(int sig){
 	//강의자료 p26-27의 플로우차트를 참고한다.
 }
 
-void AddBlockToField(char f[HEIGHT][WIDTH],int currentBlock,int blockRotate, int blockY, int blockX){
-	int i, j, y_cord, x_cord;
+int AddBlockToField(char f[HEIGHT][WIDTH],int currentBlock,int blockRotate, int blockY, int blockX){
+	int i, j, y_cord, x_cord, touched=0;
 
 	for(j=0; j < BLOCK_HEIGHT; j++){
 		for(i=0; i < BLOCK_WIDTH; i++){
 			y_cord = blockY+j;
 			x_cord = blockX+i;
 			if(block[currentBlock][blockRotate][j][i] == 1){
-				if((y_cord >= 0) && (y_cord < HEIGHT) && (x_cord >= 0) && (x_cord < WIDTH)){
+				if(f[y_cord+1][x_cord] == 1 || y_cord+1 == HEIGHT) touched++;
+				//if((y_cord >= 0) && (y_cord < HEIGHT) && (x_cord >= 0) && (x_cord < WIDTH)){
 					f[y_cord][x_cord] = 1;
-				}
+				//}
 			}
 		}
 	}
 
+	return touched*10;
 	//Block이 추가된 영역의 필드값을 바꾼다.
 }
 
@@ -372,7 +395,9 @@ int DeleteLine(char f[HEIGHT][WIDTH]){
 ///////////////////////////////////////////////////////////////////////////
 
 void DrawShadow(int y, int x, int blockID,int blockRotate){
-	// user code
+	while(CheckToMove(field, blockID, blockRotate, y+1, x)) y++;
+
+	DrawBlock(y, x, blockID, blockRotate, '/');
 }
 
 void createRankList(){
@@ -405,4 +430,9 @@ int recommend(RecNode *root){
 
 void recommendedPlay(){
 	// user code
+}
+
+void DrawBlockWithFeatures(int y, int x, int blockID, int blockRotate){
+	DrawBlock(y, x, blockID, blockRotate, ' ');
+	DrawShadow(y, x, blockID, blockRotate);
 }
