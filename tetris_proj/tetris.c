@@ -271,42 +271,8 @@ int CheckToMove(char f[HEIGHT][WIDTH],int currentBlock,int blockRotate, int bloc
 }
 
 void DrawChange(char f[HEIGHT][WIDTH],int command,int currentBlock,int blockRotate, int blockY, int blockX){
-/*	int prevBlockY, prevBlockX, x, y, y_cord, x_cord;
-
-	switch(command){
-		case KEY_DOWN:
-			prevBlockY = blockY-1;
-			prevBlockX = blockX;
-			break;
-		case KEY_RIGHT:
-			prevBlockY = blockY;
-			prevBlockX = blockX-1;
-			break;
-		case KEY_LEFT:
-			prevBlockY = blockY;
-			prevBlockX = blockX+1;
-			break;
-		default:
-			prevBlockY = blockY;
-			prevBlockX = blockX;
-			break;
-	}
-
-	for(y=0; y < BLOCK_HEIGHT; y++){
-		for(x=0; x < BLOCK_WIDTH; x++){
-			y_cord = prevBlockY+y;
-			x_cord = prevBlockX+x;
-			if((y_cord >= 0) && (y_cord < HEIGHT) && (x_cord >= 0) && (x_cord < WIDTH)){
-				move(y_cord+1, x_cord+1);
-				printw(".");
-			}
-		}
-	}
-*/
-
+	
 	DrawField();
-
-	//move(HEIGHT, WIDTH+10);
 
 	DrawBlockWithFeatures(blockY, blockX, currentBlock, blockRotate);
 	
@@ -352,9 +318,8 @@ int AddBlockToField(char f[HEIGHT][WIDTH],int currentBlock,int blockRotate, int 
 			x_cord = blockX+i;
 			if(block[currentBlock][blockRotate][j][i] == 1){
 				if(f[y_cord+1][x_cord] == 1 || y_cord+1 == HEIGHT) touched++;
-				//if((y_cord >= 0) && (y_cord < HEIGHT) && (x_cord >= 0) && (x_cord < WIDTH)){
-					f[y_cord][x_cord] = 1;
-				//}
+				
+				f[y_cord][x_cord] = 1;
 			}
 		}
 	}
