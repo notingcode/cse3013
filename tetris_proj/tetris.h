@@ -353,10 +353,11 @@ int recommend(RecNode *root);
 void recommendedPlay();
 
 /***********************************************************
-*	
+ *  블록과 블록의 그림자를 그린다.
+ *  input	: (int) 블록의 y좌표, (int) 블록의 x좌표,
+  			(int) 블록의 종류, (int) 블록의 회전 수
+ *	return	: none
 ************************************************************/
 void DrawBlockWithFeatures(int y, int x, int blockID, int blockRotate);
-
-
 
 #endif
