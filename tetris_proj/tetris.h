@@ -21,6 +21,7 @@
 
 // menu number
 #define MENU_PLAY '1'
+#define MENU_RANK '2'
 #define MENU_EXIT '4'
 
 // 사용자 이름의 길이
@@ -33,6 +34,12 @@ typedef struct _RecNode{
 	char (*f)[WIDTH];
 	struct _RecNode *c[CHILDREN_MAX];
 } RecNode;
+
+typedef struct _Node{
+	char name[NAMELEN+1];
+	int score;
+	struct _Node* link;
+} Node;
 
 /* [blockShapeID][# of rotate][][]*/
 const char block[NUM_OF_SHAPE][NUM_OF_ROTATE][BLOCK_HEIGHT][BLOCK_WIDTH] ={
@@ -141,9 +148,11 @@ int nextBlock[BLOCK_NUM];	/* 현재 블럭의 ID와 다음 블럭의 ID들을 �
 int blockRotate,blockY,blockX;	/* 현재 블럭의 회전, 블럭의 Y 좌표, 블럭의 X 좌표*/
 int score;			/* 점수가 저장*/
 int gameOver=0;			/* 게임이 종료되면 1로 setting된다.*/
+int num_items;
 int timed_out;
 int recommendR,recommendY,recommendX; // 추천 블럭 배치 정보. 차례대로 회전, Y 좌표, X 좌표
 RecNode *recRoot;
+Node *nodeRoot;
 
 /***********************************************************
  *	테트리스의 모든  global 변수를 초기화 해준다.
