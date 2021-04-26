@@ -514,8 +514,9 @@ void rank(){
 					prev = curr;
 					curr = curr->link;
 					idx++;
-				}
+				}	
 			}
+			printw("result: the rank deleted\n");
 			writeRankFile();
 		}
 	}
@@ -533,7 +534,6 @@ void writeRankFile(){
 	Node *curr;
 
 	curr = nodeRoot;
-	num_items++;
 
 	//2. 랭킹 정보들의 수를 "rank.txt"에 기록
 	fprintf(fp, "%d\n", num_items); 
@@ -598,6 +598,7 @@ void newRank(int score){
 
 	noecho();
 
+	num_items++;
 	writeRankFile();
 }
 
