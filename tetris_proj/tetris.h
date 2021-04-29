@@ -9,6 +9,8 @@
 #include <string.h>
 #include <unistd.h>
 
+int check;
+#define MAX(x, y) x > y ? x : y 
 #define WIDTH	10
 #define HEIGHT	22
 #define NOTHING	0
@@ -17,7 +19,7 @@
 #define NUM_OF_ROTATE	4
 #define BLOCK_HEIGHT	4
 #define BLOCK_WIDTH	4
-#define BLOCK_NUM	3
+#define BLOCK_NUM 3
 
 // menu number
 #define MENU_PLAY '1'
@@ -30,15 +32,17 @@
 #define CHILDREN_MAX 36
 
 typedef struct _RecNode{
-	int lv,score;
-	char (*f)[WIDTH];
-	struct _RecNode *c[CHILDREN_MAX];
+	int lv, score, recBlockX, recBlockY, recBlockRotate;
+	char recField[HEIGHT][WIDTH];
+	struct _RecNode **child;
+	struct _RecNode *parent;
 } RecNode;
 
+/*랭킹 시스템 linked list 자료구조 구현을 위한 node 구조체*/
 typedef struct _Node{
-	char name[NAMELEN+1];
-	int score;
-	struct _Node* link;
+	char name[NAMELEN+1]; // 이름을 저장하는 문자열
+	int score; // 점수를 저장하는 변수
+	struct _Node* link; // 다음 데이터 노드를 가리키는 link
 } Node;
 
 /* [blockShapeID][# of rotate][][]*/
@@ -148,11 +152,11 @@ int nextBlock[BLOCK_NUM];	/* 현재 블럭의 ID와 다음 블럭의 ID들을 �
 int blockRotate,blockY,blockX;	/* 현재 블럭의 회전, 블럭의 Y 좌표, 블럭의 X 좌표*/
 int score;			/* 점수가 저장*/
 int gameOver=0;			/* 게임이 종료되면 1로 setting된다.*/
-int num_items;
+int num_items;			/*rank에 저장된 데이터의 개수를 저장*/
 int timed_out;
 int recommendR,recommendY,recommendX; // 추천 블럭 배치 정보. 차례대로 회전, Y 좌표, X 좌표
 RecNode *recRoot;
-Node *nodeRoot;
+Node *nodeRoot; // 랭킹 시스템 linked list의 첫번째 노드를 가리킨다.
 
 /***********************************************************
  *	테트리스의 모든  global 변수를 초기화 해준다.
@@ -368,5 +372,14 @@ void recommendedPlay();
  *	return	: none
 ************************************************************/
 void DrawBlockWithFeatures(int y, int x, int blockID, int blockRotate);
+
+/**/
+void CopyField(char f1[HEIGHT][WIDTH], char f2[HEIGHT][WIDTH]);
+
+/**/
+void clearTree(RecNode *root);
+
+/**/
+void DrawRecommend(int y, int x, int blockID, int blockRotate);
 
 #endif
