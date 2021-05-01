@@ -9,8 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 
-int check;
-#define MAX(x, y) x > y ? x : y 
+#define MAX(x, y) x > y ? x : y
 #define WIDTH	10
 #define HEIGHT	22
 #define NOTHING	0
@@ -19,23 +18,21 @@ int check;
 #define NUM_OF_ROTATE	4
 #define BLOCK_HEIGHT	4
 #define BLOCK_WIDTH	4
-#define BLOCK_NUM 3
+#define VISIBLE_BLOCKS 4
 
 // menu number
 #define MENU_PLAY '1'
 #define MENU_RANK '2'
+#define MENU_REC '3'
 #define MENU_EXIT '4'
 
 // 사용자 이름의 길이
 #define NAMELEN 16
 
-#define CHILDREN_MAX 36
-
 typedef struct _RecNode{
 	int lv, score, recBlockX, recBlockY, recBlockRotate;
 	char recField[HEIGHT][WIDTH];
 	struct _RecNode **child;
-	struct _RecNode *parent;
 } RecNode;
 
 /*랭킹 시스템 linked list 자료구조 구현을 위한 node 구조체*/
@@ -148,7 +145,7 @@ const char block[NUM_OF_SHAPE][NUM_OF_ROTATE][BLOCK_HEIGHT][BLOCK_WIDTH] ={
 };
 
 char field[HEIGHT][WIDTH];	/* 테트리스의 메인 게임 화면 */
-int nextBlock[BLOCK_NUM];	/* 현재 블럭의 ID와 다음 블럭의 ID들을 저장; [0]: 현재 블럭; [1]: 다음 블럭 */
+int nextBlock[VISIBLE_BLOCKS];	/* 현재 블럭의 ID와 다음 블럭의 ID들을 저장; [0]: 현재 블럭; [1]: 다음 블럭 */
 int blockRotate,blockY,blockX;	/* 현재 블럭의 회전, 블럭의 Y 좌표, 블럭의 X 좌표*/
 int score;			/* 점수가 저장*/
 int gameOver=0;			/* 게임이 종료되면 1로 setting된다.*/
@@ -377,9 +374,18 @@ void DrawBlockWithFeatures(int y, int x, int blockID, int blockRotate);
 void CopyField(char f1[HEIGHT][WIDTH], char f2[HEIGHT][WIDTH]);
 
 /**/
-void clearTree(RecNode *root);
+void DrawRecommend(int y, int x, int blockID, int blockRotate);
 
 /**/
-void DrawRecommend(int y, int x, int blockID, int blockRotate);
+int clearTree(RecNode* root);
+
+/**/
+void InitTree();
+
+/**/
+void findMaxScorePos();
+
+/**/
+RecNode** callocChildren(int blockID, int* rotation);
 
 #endif

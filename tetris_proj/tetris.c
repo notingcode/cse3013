@@ -1,4 +1,5 @@
 ﻿#include "tetris.h"
+#include "queue.h"
 
 static struct sigaction act, oact;
 
@@ -18,6 +19,7 @@ int main(){
 		switch(menu()){
 		case MENU_PLAY: play(); break;
 		case MENU_RANK: rank(); break;
+		case MENU_REC: recommendedPlay(); break;
 		case MENU_EXIT: exit=1; break;
 		default: break;
 		}
@@ -35,9 +37,9 @@ void InitTetris(){
 		for(i=0;i<WIDTH;i++)
 			field[j][i]=0;
 
-	nextBlock[0]=rand()%7;
-	nextBlock[1]=rand()%7;
-	nextBlock[2]=rand()%7;
+	for(i=0; i<VISIBLE_BLOCKS; i++){
+		nextBlock[i] = rand()%7;
+	}
 	blockRotate=0;
 	blockY=-1;
 	blockX=WIDTH/2-2;
@@ -52,7 +54,7 @@ void InitTetris(){
 	PrintScore(score);
 }
 
-void DrawOutline(){	
+void DrawOutline(){
 	int i,j;
 	/* 블럭이 떨어지는 공간의 테두리를 그린다.*/
 	DrawBox(0,0,HEIGHT,WIDTH);
@@ -125,7 +127,7 @@ int ProcessCommand(int command){
 		break;
 	}
 	if(drawFlag) DrawChange(field,command,nextBlock[0],blockRotate,blockY,blockX);
-	return ret;	
+	return ret;
 }
 
 void DrawField(){
@@ -212,28 +214,13 @@ void DrawBox(int y,int x, int height, int width){
 }
 
 void play(){
-	int command, max=0, i=0;
+	int command;
 
 	clear();
 	act.sa_handler = BlockDown;
 	sigaction(SIGALRM,&act,&oact);
 	InitTetris();
-	
-	recRoot = (RecNode*)calloc(1, sizeof(RecNode));
-	recRoot->lv = -1;
-	CopyField(field, recRoot->recField);
-	recommend(recRoot);
-	if(recRoot->child){
-		while((*(recRoot->child+i)) != NULL){
-			if(max < (*(recRoot->child+i))->score){
-				recommendY = (*(recRoot->child+i))->recBlockY;
-				recommendX = (*(recRoot->child+i))->recBlockX;
-				recommendR = (*(recRoot->child+i))->recBlockRotate;
-				max = (*(recRoot->child+i))->score;
-			}
-			i++;
-		}
-	}
+	InitTree();
 
 	do{
 		if(timed_out==0){
@@ -306,7 +293,7 @@ void DrawChange(char f[HEIGHT][WIDTH],int command,int currentBlock,int blockRota
 }
 
 void BlockDown(int sig){
-	int moveFlag, max=0, i=0; // 블록이 아래로 이동할 수 있는지 표시하는 flag
+	int moveFlag; // 블록이 아래로 이동할 수 있는지 표시하는 flag
 	moveFlag = CheckToMove(field, nextBlock[0], blockRotate, blockY+1, blockX); // 아래의 칸으로 이동이 가능한지 확인
 
 	// 아래로 이동이 가능하면 블록의 y좌표에 1을 더하고 변경된 위치에 블록을 다시 그린다
@@ -325,24 +312,15 @@ void BlockDown(int sig){
 		blockY = -1, blockX = (WIDTH)/2-2, blockRotate=0; // 블록을 초기화
 		score += DeleteLine(field); // 필드에서 가득찬 줄들을 지우고 함수에서 반환된 점수를 score에 더한다
 		PrintScore(score);
-		nextBlock[0] = nextBlock[1]; // 현재 블록을 다음 블록으로 지정
-		nextBlock[1] = nextBlock[2]; // 다음 블록을 다다음 블록으로 지정
-		nextBlock[2] = rand()%7; // 새로운 다다음 블록을 랜덤하게 지정
+		for(int i=1; i<VISIBLE_BLOCKS; i++){
+			nextBlock[i-1] = nextBlock[i];
+		}
+		nextBlock[VISIBLE_BLOCKS-1] = rand()%7;
 		DrawField();
 		clearTree(recRoot);
 		CopyField(field, recRoot->recField);
 		recommend(recRoot);
-		if(recRoot->child){
-			while((*(recRoot->child+i)) != NULL){
-				if(max < (*(recRoot->child+i))->score){
-					recommendY = (*(recRoot->child+i))->recBlockY;
-					recommendX = (*(recRoot->child+i))->recBlockX;
-					recommendR = (*(recRoot->child+i))->recBlockRotate;
-					max = (*(recRoot->child+i))->score;
-				}
-				i++;
-			}
-		}
+		findMaxScorePos();
 		DrawNextBlock(nextBlock); // 앞으로 나올 블록들을 각자의 상자에 출력
 	}
 
@@ -634,26 +612,25 @@ void newRank(int score){
 	writeRankFile();
 }
 
-void DrawRecommend(int y, int x, int blockID,int blockRotate){
+void DrawRecommend(int y, int x, int blockID, int blockRotate){
 	DrawBlock(y, x, blockID, blockRotate, 'R');
 }
 
 int recommend(RecNode *root){
-	int max=0, num_childAdded=0, temp_y, temp_score, curr_lv; // 미리 보이는 블럭의 추천 배치까지 고려했을 때 얻을 수 있는 최대 점수
+	int max=0, num_childAdded=0, max_rotation, curr_lv, temp_y, temp_score; // 미리 보이는 블럭의 추천 배치까지 고려했을 때 얻을 수 있는 최대 점수
 
-	root->child = (RecNode**)calloc(37, sizeof(RecNode*));
+	if(root->lv == -1) curr_lv=0;
+	else curr_lv=root->lv;
+	root->child = callocChildren(nextBlock[curr_lv], &max_rotation);
 
-	for(int rot=0; rot < 4; rot++){
+	for(int rot=0; rot < max_rotation; rot++){
 		for(int pos_X=-2; pos_X < WIDTH; pos_X++){
-			if(root->lv == -1) curr_lv=0;
-			else curr_lv=root->lv;
 			temp_y = -1;
 			if(CheckToMove(root->recField, nextBlock[curr_lv], rot, temp_y, pos_X)){
 				temp_score=0;
 				while(CheckToMove(root->recField, nextBlock[curr_lv], rot, temp_y+1, pos_X)) temp_y++;
 
 				root->child[num_childAdded] = (RecNode*)calloc(1, sizeof(RecNode));
-				(*(root->child+num_childAdded))->parent = root;
 				(*(root->child+num_childAdded))->lv = curr_lv + 1;
 				(*(root->child+num_childAdded))->recBlockRotate = rot;
 				(*(root->child+num_childAdded))->recBlockX = pos_X;
@@ -661,7 +638,7 @@ int recommend(RecNode *root){
 				CopyField(root->recField, (*(root->child+num_childAdded))->recField);
 				temp_score = AddBlockToField((*(root->child+num_childAdded))->recField, nextBlock[curr_lv], rot, temp_y, pos_X);
 				temp_score += DeleteLine((*(root->child+num_childAdded))->recField);
-				if((*(root->child+num_childAdded))->lv < BLOCK_NUM) temp_score += recommend((*(root->child+num_childAdded)));
+				if((*(root->child+num_childAdded))->lv < VISIBLE_BLOCKS) temp_score += recommend((*(root->child+num_childAdded)));
 				(*(root->child+num_childAdded))->score = temp_score;
 				num_childAdded++;
 			}
@@ -673,16 +650,6 @@ int recommend(RecNode *root){
 	}
 
 	return max;
-}
-
-void clearTree(RecNode *root){
-	if(root->child){
-		for(int i=0; (*(root->child+i)); i++){
-			clearTree((*(root->child+i)));
-			free((*(root->child+i)));
-		}
-		free(root->child);
-	}
 }
 
 void recommendedPlay(){
@@ -731,4 +698,59 @@ void CopyField(char f1[HEIGHT][WIDTH], char f2[HEIGHT][WIDTH]){
 			f2[j][i] = f1[j][i];
 		}
 	}
+}
+
+int clearTree(RecNode *root){
+	if(root->child){
+		for(int i=0; root->child[i]; i++){
+			clearTree(root->child[i]);
+			free(root->child[i]);
+		}
+		free(root->child);
+	}
+
+    return 0;
+}
+
+void InitTree(){
+	recRoot = (RecNode*)calloc(1, sizeof(RecNode));
+	recRoot->lv = -1;
+	CopyField(field, recRoot->recField);
+	recommend(recRoot);
+	findMaxScorePos();
+}
+
+void findMaxScorePos(){
+	int max=0, i=0;
+	if(recRoot->child){
+		while((*(recRoot->child+i)) != NULL){
+			if(max < (*(recRoot->child+i))->score){
+				recommendY = (*(recRoot->child+i))->recBlockY;
+				recommendX = (*(recRoot->child+i))->recBlockX;
+				recommendR = (*(recRoot->child+i))->recBlockRotate;
+				max = (*(recRoot->child+i))->score;
+			}
+			i++;
+		}
+	}
+}
+
+RecNode** callocChildren(int blockID, int* rotation){
+	int size;
+
+	switch(blockID){
+		case 4:
+			*rotation=1;
+			break;
+		case 0:
+		case 5:
+		case 6:
+			*rotation=2;
+			break;
+		default:
+			*rotation=4;
+			break;
+	}
+
+	return calloc((*rotation*9)+1, sizeof(RecNode*));
 }
