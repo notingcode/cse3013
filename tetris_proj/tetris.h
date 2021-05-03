@@ -18,7 +18,7 @@
 #define NUM_OF_ROTATE	4
 #define BLOCK_HEIGHT	4
 #define BLOCK_WIDTH	4
-#define VISIBLE_BLOCKS 4
+#define VISIBLE_BLOCKS 3
 
 // menu number
 #define MENU_PLAY '1'
@@ -354,6 +354,9 @@ void newRank(int score);
  *	return	: (int) 추천 블럭 배치를 따를 때 얻어지는 예상 스코어
  ***********************************************************/
 int recommend(RecNode *root);
+
+/**/
+int modified_recommend();
 
 /***********************************************************
  *	추천 기능에 따라 블럭을 배치하여 진행하는 게임을 시작한다.

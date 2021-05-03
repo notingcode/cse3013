@@ -638,6 +638,7 @@ int recommend(RecNode *root){
 				CopyField(root->recField, (*(root->child+num_childAdded))->recField);
 				temp_score = AddBlockToField((*(root->child+num_childAdded))->recField, nextBlock[curr_lv], rot, temp_y, pos_X);
 				temp_score += DeleteLine((*(root->child+num_childAdded))->recField);
+				temp_score += (temp_y*temp_y*temp_y);
 				if((*(root->child+num_childAdded))->lv < VISIBLE_BLOCKS) temp_score += recommend((*(root->child+num_childAdded)));
 				(*(root->child+num_childAdded))->score = temp_score;
 				num_childAdded++;
@@ -652,39 +653,44 @@ int recommend(RecNode *root){
 	return max;
 }
 
+int modified_recommend(){
+	
+}
+
 void recommendedPlay(){
-	// int command;
-	// clear();
-	// act.sa_handler = BlockDown;
-	// sigaction(SIGALRM,&act,&oact);
-	// InitTetris();
-	// do{
-	// 	if(timed_out==0){
-	// 		alarm(1);
-	// 		timed_out=1;
-	// 	}
+	int command;
+	clear();
+	act.sa_handler = BlockDown;
+	sigaction(SIGALRM,&act,&oact);
+	InitTetris();
+	InitTree();
+	do{
+		if(timed_out==0){
+			alarm(1);
+			timed_out=1;
+		}
 
-	// 	command = GetCommand();
-	// 	if(ProcessCommand(command)==QUIT){
-	// 		alarm(0);
-	// 		DrawBox(HEIGHT/2-1,WIDTH/2-5,1,10);
-	// 		move(HEIGHT/2,WIDTH/2-4);
-	// 		printw("Good-bye!!");
-	// 		refresh();
-	// 		getch();
+		command = GetCommand();
+		if(ProcessCommand(command)==QUIT){
+			alarm(0);
+			DrawBox(HEIGHT/2-1,WIDTH/2-5,1,10);
+			move(HEIGHT/2,WIDTH/2-4);
+			printw("Good-bye!!");
+			refresh();
+			getch();
 
-	// 		return;
-	// 	}
-	// }while(!gameOver);
+			return;
+		}
+	}while(!gameOver);
 
-	// alarm(0);
-	// getch();
-	// DrawBox(HEIGHT/2-1,WIDTH/2-5,1,10);
-	// move(HEIGHT/2,WIDTH/2-4);
-	// printw("GameOver!!");
-	// refresh();
-	// getch();
-	// newRank(score);
+	alarm(0);
+	getch();
+	DrawBox(HEIGHT/2-1,WIDTH/2-5,1,10);
+	move(HEIGHT/2,WIDTH/2-4);
+	printw("GameOver!!");
+	refresh();
+	getch();
+	newRank(score);
 }
 
 void DrawBlockWithFeatures(int y, int x, int blockID, int blockRotate){

@@ -17,6 +17,8 @@ int addQueue(void* node){
     }
     qTail = new;
 
+    qNum++;
+
     return 0;
 }
 
@@ -33,6 +35,7 @@ void* delQueue(){
     tempNode = qHead->element;
     qHead = qHead->link;
     free(tempQ);
+    qNum--;
 
     return tempNode;
 }
@@ -48,6 +51,7 @@ int emptyQueue(){
         qHead = qHead->link;
         free(temp);
     }
+    qNum=0;
     qTail=NULL;
 
     return 0;
