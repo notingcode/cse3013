@@ -1,14 +1,11 @@
 ﻿target=tetris
-source=tetris.o queue.o
+source=tetris.o
 
 $(target) : $(source)
-	gcc -o $(target) $(source) -lncurses
+	gcc -g -o $(target) $(source) -lncurses
 
-tetris.o : tetris.c tetris.h queue.c queue.h
-	gcc -c tetris.c
-
-queue.o : queue.c queue.h
-	gcc -c queue.c
+tetris.o : tetris.c tetris.h
+	gcc -g -c tetris.c
 
 clean:
 	rm $(target) *.o

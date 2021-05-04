@@ -8,8 +8,10 @@
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 #define MAX(x, y) x > y ? x : y
+#define MIN(x, y) x < y ? x : y
 #define WIDTH	10
 #define HEIGHT	22
 #define NOTHING	0
@@ -28,12 +30,20 @@
 
 // 사용자 이름의 길이
 #define NAMELEN 16
+#define MAX_CHILDREN 35
 
 typedef struct _RecNode{
 	int lv, score, recBlockX, recBlockY, recBlockRotate;
 	char recField[HEIGHT][WIDTH];
 	struct _RecNode **child;
 } RecNode;
+
+
+// typedef struct _RecNode{
+// 	int lv, score, recBlockX, recBlockY, recBlockRotate;
+// 	char recHeight[WIDTH];
+// 	struct _RecNode **child;
+// } RecNode;
 
 /*랭킹 시스템 linked list 자료구조 구현을 위한 node 구조체*/
 typedef struct _Node{
@@ -151,8 +161,12 @@ int score;			/* 점수가 저장*/
 int gameOver=0;			/* 게임이 종료되면 1로 setting된다.*/
 int num_items;			/*rank에 저장된 데이터의 개수를 저장*/
 int timed_out;
+int play_auto;			/* 자동 플레이 시 1로 setting */
+double tree_time, game_time; /* 게임 플레이 총시간과 트리 하나를 생성하는데 필요한 시간 저장*/
+long min_tree_space, max_tree_space, temp_space;
+time_t gameStart, gameStop, treeStart, treeStop;
 int recommendR,recommendY,recommendX; // 추천 블럭 배치 정보. 차례대로 회전, Y 좌표, X 좌표
-RecNode *recRoot;
+RecNode *recRoot; // 추천 시스템 트리 자료구조의 첫번째 노드 주소
 Node *nodeRoot; // 랭킹 시스템 linked list의 첫번째 노드를 가리킨다.
 
 /***********************************************************
@@ -355,8 +369,12 @@ void newRank(int score);
  ***********************************************************/
 int recommend(RecNode *root);
 
-/**/
-int modified_recommend();
+/***********************************************************
+ * 추천 블럭 배치를 더 효율적으로 구한다
+ * 	input	: (RecNode*) 추천 트리의 루트
+ *	return	: (int) 추천 블럭 배치를 따를 때 얻어지는 예상 스코어
+************************************************************/
+int modified_recommend(RecNode *root);
 
 /***********************************************************
  *	추천 기능에 따라 블럭을 배치하여 진행하는 게임을 시작한다.
@@ -373,22 +391,67 @@ void recommendedPlay();
 ************************************************************/
 void DrawBlockWithFeatures(int y, int x, int blockID, int blockRotate);
 
-/**/
+/**********************************************************
+ * 필드값을 다른 필드에 복사한다
+ * input	: (char) source 필드, (char) destination 필드
+ * return	: none
+**********************************************************/
 void CopyField(char f1[HEIGHT][WIDTH], char f2[HEIGHT][WIDTH]);
 
-/**/
+/**********************************************************
+ * 블록의 추천 위치를 필드에 그린다
+ * input	: (int) 추천 블록의 y좌표, (int) 추천 블록의 x좌표,
+  			(int) 블록의 종류, (int) 블록의 회전 수
+ * return	: none
+**********************************************************/
 void DrawRecommend(int y, int x, int blockID, int blockRotate);
 
-/**/
+/********************************************************
+ * 트리 자료구조의 root를 제외한 모든 노드의 메모리 공간을 해제한다
+ * input	: (RecNode*) root 노드
+ * return	: 해제가 성공했을 때 0을 반환
+*********************************************************/
 int clearTree(RecNode* root);
 
-/**/
+/*******************************************************
+ * 트리 자료구조를 초기화
+ * input	: none
+ * return	: none
+*******************************************************/
 void InitTree();
 
-/**/
+/*****************************************************
+ * Root 노드의 children 노드들 중 가장 높은 점수를 가지고 있는 child 노드를 찾아
+   노드의 정보를 사용하여 recommendY, recommendX, recommendR 값을 정한다
+ * input	: none
+ * return	: none
+*****************************************************/
 void findMaxScorePos();
 
+/***************************************************
+ * 블록이 다른 모양을 가지는 최대 횟수를 구한다
+ * input	: (int) 블록의 종류, (int*) 최대 횟수를 저장할 수
+ * return	: none
+***************************************************/
+void findMaxRotation(int blockID, int* rotation);
+
 /**/
-RecNode** callocChildren(int blockID, int* rotation);
+// int CheckHeight(char h[WIDTH], int currentBlock, int blockRotate, int blockY, int blockX);
+
+/**/
+// int ChangeHeight(char h[WIDTH], int currentBlock, int blockRotate, int blockY, int blockX);
+
+/**/
+// void CopyHeight(char h1[WIDTH], char h2[WIDTH]);
+
+/**/
+// int DeleteHeight(char h[WIDTH]);
+
+/***********************************************
+ * 트리 자료구조가 차지하는 메모리 공간의 크기를 byte로 반환
+ * input	: Tree 자료구조의 root 노드 주소
+ * return	: Tree 자료구조의 byte 크기
+***********************************************/
+long evalSize(RecNode* root);
 
 #endif

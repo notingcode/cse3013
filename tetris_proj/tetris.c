@@ -1,5 +1,4 @@
 ﻿#include "tetris.h"
-#include "queue.h"
 
 static struct sigaction act, oact;
 
@@ -222,6 +221,8 @@ void play(){
 	InitTetris();
 	InitTree();
 
+	// 게임 실행시간 측정
+	gameStart = time(NULL);
 	do{
 		if(timed_out==0){
 			alarm(1);
@@ -240,6 +241,9 @@ void play(){
 			return;
 		}
 	}while(!gameOver);
+	gameStop = time(NULL);
+
+	game_time = (double)difftime(gameStop, gameStart);
 
 	alarm(0);
 	getch();
@@ -248,7 +252,17 @@ void play(){
 	printw("GameOver!!");
 	refresh();
 	getch();
-	newRank(score);
+	if(play_auto){
+		clear();
+		printw("Play Time t: %lf\n", game_time);
+		printw("score(t): %d\n", score);
+		printw("time(t): %lf\n", tree_time);
+		temp_space = (max_tree_space+min_tree_space)/2;
+		printw("space(t): %ld\n", temp_space);
+		getch();
+		clear();
+	}
+	else newRank(score);
 }
 
 char menu(){
@@ -298,7 +312,13 @@ void BlockDown(int sig){
 
 	// 아래로 이동이 가능하면 블록의 y좌표에 1을 더하고 변경된 위치에 블록을 다시 그린다
 	if(moveFlag){
-		blockY++;
+		// 자동 플레이 시 실행
+		if(play_auto){
+			blockX = recommendX;
+			blockY = recommendY;
+			blockRotate = recommendR;
+		}
+		else blockY++;
 		DrawChange(field, KEY_DOWN, nextBlock[0], blockRotate, blockY, blockX);
 	}
 	else{
@@ -319,7 +339,14 @@ void BlockDown(int sig){
 		DrawField();
 		clearTree(recRoot);
 		CopyField(field, recRoot->recField);
-		recommend(recRoot);
+		treeStart = time(NULL);
+		// recommend(recRoot);
+		modified_recommend(recRoot);
+		treeStop = time(NULL);
+		tree_time += (double)difftime(treeStop, treeStart);
+		temp_space = evalSize(recRoot);
+		max_tree_space = MAX(max_tree_space, temp_space);
+		min_tree_space = MIN(min_tree_space, temp_space);
 		findMaxScorePos();
 		DrawNextBlock(nextBlock); // 앞으로 나올 블록들을 각자의 상자에 출력
 	}
@@ -621,76 +648,96 @@ int recommend(RecNode *root){
 
 	if(root->lv == -1) curr_lv=0;
 	else curr_lv=root->lv;
-	root->child = callocChildren(nextBlock[curr_lv], &max_rotation);
+	findMaxRotation(nextBlock[curr_lv], &max_rotation);
+	root->child = (RecNode**)calloc(MAX_CHILDREN, sizeof(RecNode*));
 
 	for(int rot=0; rot < max_rotation; rot++){
 		for(int pos_X=-2; pos_X < WIDTH; pos_X++){
-			temp_y = -1;
-			if(CheckToMove(root->recField, nextBlock[curr_lv], rot, temp_y, pos_X)){
+			if(CheckToMove(root->recField, nextBlock[curr_lv], rot, -1, pos_X)){
 				temp_score=0;
+				temp_y = -1;
 				while(CheckToMove(root->recField, nextBlock[curr_lv], rot, temp_y+1, pos_X)) temp_y++;
 
 				root->child[num_childAdded] = (RecNode*)calloc(1, sizeof(RecNode));
-				(*(root->child+num_childAdded))->lv = curr_lv + 1;
-				(*(root->child+num_childAdded))->recBlockRotate = rot;
-				(*(root->child+num_childAdded))->recBlockX = pos_X;
-				(*(root->child+num_childAdded))->recBlockY = temp_y;
-				CopyField(root->recField, (*(root->child+num_childAdded))->recField);
-				temp_score = AddBlockToField((*(root->child+num_childAdded))->recField, nextBlock[curr_lv], rot, temp_y, pos_X);
-				temp_score += DeleteLine((*(root->child+num_childAdded))->recField);
-				temp_score += (temp_y*temp_y*temp_y);
-				if((*(root->child+num_childAdded))->lv < VISIBLE_BLOCKS) temp_score += recommend((*(root->child+num_childAdded)));
-				(*(root->child+num_childAdded))->score = temp_score;
+				root->child[num_childAdded]->lv = curr_lv + 1;
+				root->child[num_childAdded]->recBlockRotate = rot;
+				root->child[num_childAdded]->recBlockX = pos_X;
+				root->child[num_childAdded]->recBlockY = temp_y;
+				CopyField(root->recField, root->child[num_childAdded]->recField);
+				temp_score = AddBlockToField(root->child[num_childAdded]->recField, nextBlock[curr_lv], rot, temp_y, pos_X);
+				temp_score += DeleteLine(root->child[num_childAdded]->recField);
+				temp_score += (temp_y*temp_y);
+				if(root->child[num_childAdded]->lv < VISIBLE_BLOCKS) temp_score += recommend(root->child[num_childAdded]);
+				root->child[num_childAdded]->score = temp_score;
 				num_childAdded++;
 			}
 		}
 	}
 
 	for(int i=0; i < num_childAdded; i++){
-		max = MAX(max, (*(root->child+i))->score);
+		max = MAX(max, root->child[i]->score);
 	}
 
 	return max;
 }
 
-int modified_recommend(){
-	
+int modified_recommend(RecNode *root){
+	int max=0, max_idx=0, num_childAdded=0, max_rotation, curr_lv, temp_y, temp_score, end_idx;
+
+	if(root->lv == -1) curr_lv=0;
+	else curr_lv=root->lv;
+
+	findMaxRotation(nextBlock[curr_lv], &max_rotation);
+	end_idx=max_rotation*9;
+	root->child = (RecNode**)calloc(end_idx+1, sizeof(RecNode*));
+
+	root->child[end_idx] = (RecNode*)calloc(1, sizeof(RecNode));
+	for(int rot=0; rot < max_rotation; rot++){
+		for(int pos_X=-2; pos_X < WIDTH; pos_X++){
+			if(CheckToMove(root->recField, nextBlock[curr_lv], rot, -1, pos_X)){
+				temp_score=0;
+				temp_y = -1;
+				while(CheckToMove(root->recField, nextBlock[curr_lv], rot, temp_y+1, pos_X)) temp_y++;
+
+				root->child[end_idx]->lv = curr_lv + 1;
+				root->child[end_idx]->recBlockRotate = rot;
+				root->child[end_idx]->recBlockX = pos_X;
+				root->child[end_idx]->recBlockY = temp_y;
+				CopyField(root->recField, root->child[end_idx]->recField);
+				temp_score = AddBlockToField(root->child[end_idx]->recField, nextBlock[curr_lv], rot, temp_y, pos_X);
+				temp_score += DeleteLine(root->child[end_idx]->recField);
+				temp_score += (temp_y*temp_y);
+				root->child[end_idx]->score = temp_score;
+				if(temp_score > max){
+					max = temp_score;
+					root->child[num_childAdded++] = root->child[end_idx];
+					root->child[end_idx] = (RecNode*)calloc(1, sizeof(RecNode));
+				}
+				else if((num_childAdded <= end_idx/2) && (rand()%2)){
+					root->child[num_childAdded++] = root->child[end_idx];
+					root->child[end_idx] = (RecNode*)calloc(1, sizeof(RecNode));
+				}
+			}
+		}
+	}
+	free(root->child[end_idx]);
+	root->child[end_idx] = NULL;
+
+	for(int i=0; i < num_childAdded; i++){
+		if(root->child[i]->lv < VISIBLE_BLOCKS) root->child[i]->score += recommend(root->child[i]);
+	}
+
+	for(int i=0; i < num_childAdded; i++){
+		if(root->child[i]->score > root->child[max_idx]->score) max_idx=i;
+	}
+
+	return root->child[max_idx]->score;
 }
 
 void recommendedPlay(){
-	int command;
-	clear();
-	act.sa_handler = BlockDown;
-	sigaction(SIGALRM,&act,&oact);
-	InitTetris();
-	InitTree();
-	do{
-		if(timed_out==0){
-			alarm(1);
-			timed_out=1;
-		}
-
-		command = GetCommand();
-		if(ProcessCommand(command)==QUIT){
-			alarm(0);
-			DrawBox(HEIGHT/2-1,WIDTH/2-5,1,10);
-			move(HEIGHT/2,WIDTH/2-4);
-			printw("Good-bye!!");
-			refresh();
-			getch();
-
-			return;
-		}
-	}while(!gameOver);
-
-	alarm(0);
-	getch();
-	DrawBox(HEIGHT/2-1,WIDTH/2-5,1,10);
-	move(HEIGHT/2,WIDTH/2-4);
-	printw("GameOver!!");
-	refresh();
-	getch();
-	newRank(score);
+	play_auto=1;
+	play();
+	play_auto=0;
 }
 
 void DrawBlockWithFeatures(int y, int x, int blockID, int blockRotate){
@@ -722,7 +769,9 @@ void InitTree(){
 	recRoot = (RecNode*)calloc(1, sizeof(RecNode));
 	recRoot->lv = -1;
 	CopyField(field, recRoot->recField);
-	recommend(recRoot);
+	// recommend(recRoot);
+	modified_recommend(recRoot);
+	min_tree_space = max_tree_space = evalSize(recRoot);
 	findMaxScorePos();
 }
 
@@ -741,7 +790,7 @@ void findMaxScorePos(){
 	}
 }
 
-RecNode** callocChildren(int blockID, int* rotation){
+void findMaxRotation(int blockID, int* rotation){
 	int size;
 
 	switch(blockID){
@@ -757,6 +806,68 @@ RecNode** callocChildren(int blockID, int* rotation){
 			*rotation=4;
 			break;
 	}
+}
 
-	return calloc((*rotation*9)+1, sizeof(RecNode*));
+/*이 기능을 구현하기 위해선 modified_recommend 함수 부분적으로 수정필요*/
+
+// int CheckHeight(char h[WIDTH], int currentBlock, int blockRotate, int blockY, int blockX){
+// 	int y, x, y_cord, x_cord;
+
+// 	// 블록의 좌표를 기준으로 블록 이동할 위치가 필드를 벗어나는지 확인
+// 	for(y=0; y < BLOCK_HEIGHT; y++){
+// 		for(x=0; x < BLOCK_WIDTH; x++){
+// 			// 4*4 블록의 값들 중에 1이 있는 곳의 위치가 필드를 벗어난 지점에 있는지 확인
+// 			if(block[currentBlock][blockRotate][y][x] == 1){
+// 				y_cord = blockY+y;
+// 				x_cord = blockX+x;
+// 				// 블록의 필드를 벗어나거나 블록이 이동할 위치가 높이와 겹치는 경우 0을 반환
+// 				if((y_cord < 0) || (y_cord >= HEIGHT) || (x_cord < 0) || (x_cord >= WIDTH)) return 0;
+// 				if(h[x_cord] >= y_cord) return 0;
+// 			}
+// 		}
+// 	}
+// 	// 위에 해당되는 상황이 없으면 1을 반환하여 이동이 가능함을 알림
+// 	return 1;
+// }
+
+// int ChangeHeight(char h[WIDTH], int currentBlock, int blockRotate, int blockY, int blockX){
+// 	int i, j, y_cord, x_cord, touched=0;
+
+// 	for(j=0; j < BLOCK_HEIGHT; j++){
+// 		for(i=0; i < BLOCK_WIDTH; i++){
+// 			y_cord = blockY+j;
+// 			x_cord = blockX+i;
+// 			if(block[currentBlock][blockRotate][j][i] == 1){
+// 				if(h[x_cord] == y_cord-1 || y_cord+1 == HEIGHT) touched++;
+// 				h[x_cord] = y_cord;
+// 			}
+// 		}
+// 	}
+
+// 	return touched*10; // 점수를 반환
+// }
+
+// void CopyHeight(char h1[WIDTH], char h2[WIDTH]){
+// 	for(int i=0; i<WIDTH; i++) h2[i] = h1[i];
+// }
+
+// int DeleteHeight(char h[WIDTH]){
+// 	int y, x, temp_y, temp_x;
+// 	int isfull, line_removed;
+	
+// 	line_removed = 0;
+
+// 	return (line_removed * line_removed) * 100;	// 점수를 계산하여 반환
+// }
+
+long evalSize(RecNode *root){
+	long size;
+	size = sizeof(RecNode) + (HEIGHT * WIDTH * sizeof(char));
+	if(root->child){
+		for(int i=0; root->child[i]; i++){
+			size += evalSize(root->child[i]);
+		}
+		return size;
+	}
+	else return 0;
 }
